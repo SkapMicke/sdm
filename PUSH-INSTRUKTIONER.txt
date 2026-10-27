@@ -1,0 +1,23 @@
+SIMONS DANSMEDIA – SUPABASE OCH BAKGRUNDSPUSH
+
+1. Deploya webbappens filer på Vercel som tidigare. Supabase URL och publishable key är redan ifyllda i supabase-config.js. Dessa är publika, inte hemliga.
+2. I Supabase: Authentication -> Providers -> Email: aktivera e-postinloggning (OTP/magic link). Authentication -> URL Configuration: Site URL https://sdm-neon.vercel.app och redirect https://sdm-neon.vercel.app/**.
+3. I appen: Mer -> Logga in via e-post. Öppna länken i e-posten. Lokala påminnelser laddas upp vid första inloggning. Kalender och anteckningar förblir lokala.
+4. Generera ett VAPID-nyckelpar på din egen dator: `npx web-push generate-vapid-keys`. Sätt den PUBLIC key i supabase-config.js som SDM_VAPID_PUBLIC_KEY. Spara PRIVATE key hemligt.
+5. Installera Supabase CLI och logga in: `npx supabase login` och `npx supabase link --project-ref dhotiabeesvlisuxozcw`.
+6. Sätt Edge Function-hemligheter (på din dator, INTE i webbkoden):
+   npx supabase secrets set VAPID_PUBLIC_KEY="DIN_PUBLIC_KEY" VAPID_PRIVATE_KEY="DIN_PRIVATE_KEY" VAPID_SUBJECT="mailto:din-epost@exempel.se" CRON_SECRET="ETT_LANGT_SLUMPMASSIGT_HEMLIGT_VÄRDE"
+   Supabase tillhandahåller normalt SUPABASE_URL och SUPABASE_SERVICE_ROLE_KEY för Edge Functions. Kontrollera att de finns i projektet.
+7. Deploya funktionen med `npx supabase functions deploy send-reminders --no-verify-jwt`.
+   VIKTIGT: --no-verify-jwt används eftersom funktionen har ett separat x-cron-secret-skydd. Exponera aldrig CRON_SECRET.
+8. Skapa en schemalagd körning i Supabase Dashboard (Cron/Integrations) som kör ett POST-anrop varje minut till:
+   https://dhotiabeesvlisuxozcw.supabase.co/functions/v1/send-reminders
+   Header: x-cron-secret: samma hemliga värde som CRON_SECRET.
+   Om Cron UI inte kan lägga till header, använd pg_cron + pg_net + Supabase Vault för att säkert lagra hemligheten. Lägg ALDRIG in hemligheten direkt i en publikt läsbar tabell eller frontendfil.
+9. I appen: Mer -> Aktivera push på denna enhet. Installera PWA på Samsung och tillåt notiser. Testa med en påminnelse några minuter framåt och stäng appen.
+
+OBS:
+- För att synkronisering och push ska fungera måste användaren vara inloggad i Supabase Auth. Google Calendar-inloggningen är separat.
+- Pushleverans kan försenas av Androids batterisparläge, nätverk eller webbläsarens begränsningar.
+- Edge Function markerar påminnelser som hanterade innan utskick för att undvika dubbletter. Vid tillfälligt nätfel sker ingen automatisk retry; för produktionsbruk bör en leveranskö med retries byggas.
+- Testa med ett nytt Supabase-projekt eller backup innan du ändrar produktionsdata.
