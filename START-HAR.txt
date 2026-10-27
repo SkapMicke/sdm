@@ -1,0 +1,14 @@
+SIMONS DANSMEDIA – GOOGLE KALENDER
+
+Client ID ar nu inlagt i google-config.js.
+
+1. Ga till ditt Vercel-projekt (sdm-neon).
+2. Publicera innehållet i mappen sdm-workspace sa att index.html ligger i webbplatsens rot.
+3. Oppna https://sdm-neon.vercel.app/ och ladda om.
+4. Tryck Mer > Anslut Google Kalender.
+5. Godkann lasbehorighet och valj kalendern med Smartplan-passen.
+6. Tryck Synkronisera nu och oppna Kalender.
+
+Obs: Google OAuth ar i Testing. Inloggningen kan behova upprepas efter att token lopt ut. Ingen bakgrundssynkronisering nar appen ar stangd.
+
+Bevara befintlig lokal data: rensa inte webblasardata for webbplatsen. Exportera sakerhetskopia fran appens installningar fore storre andringar.

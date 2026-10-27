@@ -1,0 +1,14 @@
+GOOGLE KALENDER / SMARTPLAN
+
+1. Publicera appen via HTTPS (t.ex. Vercel). Notera exakt adress, t.ex. https://din-app.vercel.app.
+2. Öppna https://console.cloud.google.com/ och skapa ett projekt.
+3. Aktivera Google Calendar API under APIs & Services > Library.
+4. Konfigurera OAuth consent screen / Google Auth Platform: appnamn Simons DansMedia Workspace, audience External, och lägg till ditt Google-konto som testanvändare om appen är i testläge. Lägg till behörigheten https://www.googleapis.com/auth/calendar.readonly.
+5. Skapa OAuth Client ID av typen Web application. Lägg till den exakta HTTPS-adressen under Authorized JavaScript origins (utan avslutande snedstreck). Redirect URI behövs inte för token client.
+6. Kopiera Client ID (inte client secret) till google-config.js och publicera filerna på nytt.
+7. Öppna appen > Mer > Anslut Google Kalender. Godkänn läsbehörighet.
+8. Välj kalendern där Smartplan-passen syns och tryck Synkronisera nu.
+
+Arbetspass visas blåmarkerade i kalendern. Uppgifterna hämtas direkt från Google och lagras inte i din lokala händelselista. Inloggningen måste förnyas när token löper ut eller appen startas om. Appen försöker uppdatera var femte minut medan den är öppen och inloggad. Smartplans/Googles egna uppdateringar kan ta längre tid. Denna koppling är endast läsning.
+
+VIKTIGT: Lägg aldrig ett Google Client Secret i webbappens filer. För en helt automatisk serverbaserad synkronisering när appen är stängd behövs en backend och annan inloggningshantering.
