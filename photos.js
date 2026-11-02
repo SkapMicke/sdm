@@ -16,7 +16,7 @@
  }
  function draw(){
   const target=root();if(!target)return;
-  if(!user()){target.innerHTML='<h1>Bildarkiv</h1><p>Logga in under Mer → Molnsynk för att se och ladda upp dina bilder.</p><button class="primary" data-go="settings">Till inloggning</button>';return;}
+  if(!user()){target.innerHTML='<h1>Bildarkiv</h1><div class="panel"><h2>Molnlagring för bilder</h2><p>Logga in med din e-post för att se och ladda upp dina bilder. Använd samma konto på alla enheter.</p><button class="primary" id="photo-login">Logga in till bildmolnet</button><p id="photo-status" role="status" aria-live="polite"></p></div>';return;}
   target.innerHTML=`<h1>Bildarkiv</h1><p class="subtitle">Dina original och kopior med @ Simons Dansmedia.</p>
    <div class="photo-drop"><label for="photo-files">Välj bilder — även tusentals samtidigt</label><input id="photo-files" type="file" multiple accept="image/jpeg,image/png,image/webp" ${running?'disabled':''}><p class="hint">JPEG, PNG och WebP, högst 50 MB per bild. Behåll sidan öppen tills kön är klar. Du kan använda andra flikar i appen.</p><progress id="photo-progress" max="1" value="0"></progress><p id="photo-status" role="status" aria-live="polite">${esc(message)}</p><button class="outline" id="photo-retry" ${running?'disabled':''}>Försök misslyckade igen</button></div>
    <div class="photo-tools"><button class="${mode==='all'?'primary':'outline'}" data-photo-mode="all">Alla bilder</button><button class="${mode==='stars'?'primary':'outline'}" data-photo-mode="stars">★ Favoriter</button><button class="${mode==='trash'?'primary':'outline'}" data-photo-mode="trash">Papperskorg</button><button class="outline" id="photo-refresh">Uppdatera</button></div>
@@ -113,6 +113,7 @@
  document.addEventListener('click',async e=>{
   const t=e.target.closest('button');if(!t||!root())return;
   try{
+   if(t.id==='photo-login'){if(!window.sdmCloudSignIn)throw Error('Inloggningen kunde inte laddas. Ladda om sidan.');await window.sdmCloudSignIn(status);}
    if(t.dataset.photoMode){mode=t.dataset.photoMode;offset=0;date='';await load();}
    if(t.dataset.photoDate){date=t.dataset.photoDate;offset=0;await load();}
    if(t.id==='photo-refresh')await load();
