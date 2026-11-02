@@ -46,11 +46,11 @@
   msg('Pushnotiser aktiverade på den här enheten ✓');
  }
  function sameKey(a,b){return a.length===b.length&&a.every((x,i)=>x===b[i]);}
- async function signIn(){
-  if(!client){msg('Supabase-klienten kunde inte laddas.');return;}
+ async function signIn(report=msg){
+  if(!client){report('Supabase-klienten kunde inte laddas.');return;}
   const email=prompt('Ange din e-postadress för inloggningslänk:');if(!email)return;
   const {error}=await client.auth.signInWithOtp({email:email.trim(),options:{emailRedirectTo:location.origin+location.pathname}});
-  msg(error?'Inloggningsfel: '+error.message:'Kontrollera din e-post och öppna inloggningslänken.');
+  report(error?'Inloggningsfel: '+error.message:'Kontrollera din e-post och öppna inloggningslänken.');
  }
  async function signOut(){await client.auth.signOut();user=null;window.sdmCloudApplyReminders?.(JSON.parse(localStorage.getItem('sdm-reminders')||'[]'));msg('Utloggad. Lokala data visas.');}
  function settings(){const slot=document.getElementById('sdm-cloud-settings');if(!slot)return;
@@ -64,6 +64,7 @@
  window.sdmCloudPull=pull;
  window.sdmCloudUser=()=>user;
  window.sdmCloudClient=()=>client;
+ window.sdmCloudSignIn=signIn;
  async function init(){if(!client)return;const {data}=await client.auth.getUser();user=data.user;window.dispatchEvent(new Event('sdm-auth'));client.auth.onAuthStateChange((_event,session)=>{user=session?.user||null;setTimeout(()=>{window.dispatchEvent(new Event('sdm-auth'));settings();if(user)pull()},0)});settings();if(user)pull();}
  init().catch(console.error);
 })();
