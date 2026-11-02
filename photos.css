@@ -1,0 +1,10 @@
+nav{grid-template-columns:repeat(6,1fr)}
+.photo-tools{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0;align-items:center}
+.photo-tools label{margin:0}.photo-tools input[type=checkbox],.photo-card input{width:20px;height:20px;accent-color:var(--gold)}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.photo-card{min-width:0;padding:10px}.photo-card img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:#100b08}
+.photo-card p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;margin:8px 0}
+.photo-card .photo-tools{margin:6px 0;justify-content:space-between}.photo-card a{color:var(--gold)}
+.photo-card button{font-size:20px}.photo-drop{border:1px dashed var(--gold);padding:20px;border-radius:15px}
+#photo-status{white-space:pre-wrap;overflow-wrap:anywhere}#photo-progress{width:100%;accent-color:var(--gold)}
+.photo-tools button:disabled{opacity:.5;cursor:default}.photo-folder{margin:8px 8px 0 0}

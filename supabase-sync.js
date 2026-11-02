@@ -63,6 +63,7 @@
  window.sdmCloudSaveReminder=saveReminder;
  window.sdmCloudPull=pull;
  window.sdmCloudUser=()=>user;
- async function init(){if(!client)return;const {data}=await client.auth.getUser();user=data.user;client.auth.onAuthStateChange((_event,session)=>{user=session?.user||null;setTimeout(()=>{settings();if(user)pull()},0)});settings();if(user)pull();}
+ window.sdmCloudClient=()=>client;
+ async function init(){if(!client)return;const {data}=await client.auth.getUser();user=data.user;window.dispatchEvent(new Event('sdm-auth'));client.auth.onAuthStateChange((_event,session)=>{user=session?.user||null;setTimeout(()=>{window.dispatchEvent(new Event('sdm-auth'));settings();if(user)pull()},0)});settings();if(user)pull();}
  init().catch(console.error);
 })();
