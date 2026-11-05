@@ -9,22 +9,38 @@
  const root=()=>document.getElementById('photo-library');
  const checked=r=>{if(r.error)throw r.error;return r.data;};
  const status=s=>{message=s;const el=document.getElementById('photo-status');if(el)el.textContent=s;};
+ const fileKey=f=>JSON.stringify([f.webkitRelativePath||f.name,f.size,f.lastModified]);
+ const queueKey=id=>'sdm-photo-queue:'+id;
+ let persistenceError=false;
+ function saveQueue(){
+  try{localStorage.setItem(queueKey(owner),JSON.stringify(queue.map(({file,...item})=>item)));persistenceError=false;}
+  catch{persistenceError=true;}
+ }
+ function restoreQueue(){
+  if(running||owner===user()?.id)return;
+  owner=user()?.id;queue=[];message='';persistenceError=false;
+  if(!owner)return;
+  try{queue=JSON.parse(localStorage.getItem(queueKey(owner))||'[]').map(x=>({...x,state:x.state==='done'?'done':'missing'}));}
+  catch{persistenceError=true;}
+ }
  function progress(){
+  if(owner!==user()?.id)return;
   const done=queue.filter(x=>x.state==='done').length, failed=queue.filter(x=>x.state==='failed');
   const el=document.getElementById('photo-progress');if(el){el.max=queue.length||1;el.value=done+failed.length;}
-  status(`${done} av ${queue.length} bilder sparade · ${failed.length} misslyckade${running?' · Uppladdning pågår':''}`+(failed.length?'\n'+failed.slice(0,5).map(x=>`${x.file.name}: ${x.error}`).join('\n'):''));
+  const missing=queue.filter(x=>x.state==='missing').length;
+  status(`${done} av ${queue.length} bilder sparade · ${failed.length} misslyckade${running?' · Uppladdning pågår':''}`+(missing?` · Välj samma filer eller mapp igen för att återansluta ${missing} bilder.`:'')+(failed.length?'\n'+failed.slice(0,5).map(x=>`${x.name}: ${x.error}`).join('\n'):'')+(persistenceError?'\nKön kunde inte sparas i webbläsaren. Stäng inte sidan förrän uppladdningen är klar.':'')+(queue.length&&done===queue.length?' · Allt är sparat i molnet. Du kan stänga av datorn.':''));
  }
  function draw(){
   const target=root();if(!target)return;
-  if(!user()){target.innerHTML='<h1>Bildarkiv</h1><p>Logga in under Mer → Molnsynk för att se och ladda upp dina bilder.</p><button class="primary" data-go="settings">Till inloggning</button>';return;}
+  if(!user()){target.innerHTML='<h1>Bildarkiv</h1><div class="panel"><h2>Molnlagring för bilder</h2><p>Logga in med din e-post för att se och ladda upp dina bilder. Använd samma konto på alla enheter.</p><button class="primary" id="photo-login">Logga in till bildmolnet</button><p id="photo-status" role="status" aria-live="polite"></p></div>';return;}
   target.innerHTML=`<h1>Bildarkiv</h1><p class="subtitle">Dina original och kopior med @ Simons Dansmedia.</p>
-   <div class="photo-drop"><label for="photo-files">Välj bilder — även tusentals samtidigt</label><input id="photo-files" type="file" multiple accept="image/jpeg,image/png,image/webp" ${running?'disabled':''}><p class="hint">JPEG, PNG och WebP, högst 50 MB per bild. Behåll sidan öppen tills kön är klar. Du kan använda andra flikar i appen.</p><progress id="photo-progress" max="1" value="0"></progress><p id="photo-status" role="status" aria-live="polite">${esc(message)}</p><button class="outline" id="photo-retry" ${running?'disabled':''}>Försök misslyckade igen</button></div>
+   <div class="photo-drop"><label for="photo-files">Välj bilder — även tusentals samtidigt</label><input id="photo-files" type="file" multiple accept="image/jpeg,image/png,image/webp" ${running?'disabled':''}><label for="photo-folder">Välj en hel mapp med undermappar</label><input id="photo-folder" type="file" multiple webkitdirectory ${running?'disabled':''}><p class="hint">JPEG, PNG och WebP, högst 50 MB per bild. Andra filformat i mappar hoppas över. Behåll sidan öppen och datorn på tills allt är sparat i molnet. En avstängd dator kan inte skicka filer. Efter omstart: välj samma mapp eller filer igen och fortsätt den sparade kön.</p><button class="primary" id="photo-start" ${running||!queue.some(x=>x.state==='waiting')?'disabled':''}>Starta / fortsätt uppladdning</button><progress id="photo-progress" max="1" value="0"></progress><p id="photo-status" role="status" aria-live="polite">${esc(message)}</p><button class="outline" id="photo-retry" ${running?'disabled':''}>Försök misslyckade igen</button><button class="outline" id="photo-clear" ${running?'disabled':''}>Rensa kön</button></div>
    <div class="photo-tools"><button class="${mode==='all'?'primary':'outline'}" data-photo-mode="all">Alla bilder</button><button class="${mode==='stars'?'primary':'outline'}" data-photo-mode="stars">★ Favoriter</button><button class="${mode==='trash'?'primary':'outline'}" data-photo-mode="trash">Papperskorg</button><button class="outline" id="photo-refresh">Uppdatera</button></div>
    ${mode==='stars'?`<label for="photo-date">Datummapp (uppladdningsdatum i Sverige)</label><input id="photo-date" type="date" value="${esc(date)}"><div id="photo-folders"></div>`:''}
    <div class="photo-tools"><label><input id="photo-all" type="checkbox" ${rows.length&&selected.size===rows.length?'checked':''}> Välj alla på sidan</label><span>${selected.size} valda</span><button id="photo-delete" class="danger" ${!selected.size||busy?'disabled':''}>${mode==='trash'?'Radera permanent':'Till papperskorgen'}</button>${mode==='trash'?`<button id="photo-restore" class="outline" ${!selected.size||busy?'disabled':''}>Återställ</button>`:''}</div>
    <div class="photo-grid">${rows.map(x=>`<article class="panel photo-card"><img loading="lazy" src="${esc(x.url||'')}" alt="${esc(x.name)}"><p title="${esc(x.name)}">${esc(x.name)}</p><small>${esc(x.upload_date)}</small><div class="photo-tools"><input type="checkbox" data-photo-select="${x.id}" aria-label="Välj ${esc(x.name)}" ${selected.has(x.id)?'checked':''}><button class="outline" data-photo-star="${x.id}" aria-label="Favorit" aria-pressed="${x.starred}">${x.starred?'★':'☆'}</button><button class="outline" data-photo-remove="${x.id}" aria-label="Ta bort ${esc(x.name)}">×</button></div><div class="photo-tools"><button class="outline" data-photo-download="${x.id}" data-variant="original_path">Original</button><button class="outline" data-photo-download="${x.id}" data-variant="preview_path">Vattenstämpel</button></div></article>`).join('')||'<p>Inga bilder att visa.</p>'}</div>
    <div class="photo-tools"><button class="outline" id="photo-prev" ${offset===0?'disabled':''}>Föregående</button><span>Sida ${Math.floor(offset/limit)+1}</span><button class="outline" id="photo-next" ${!more?'disabled':''}>Nästa</button></div><p class="hint">Papperskorgen sparar bilder tills du raderar dem permanent. Separat säkerhetskopiering behöver ordnas. Appens vanliga JSON-export innehåller inte bilder.</p>`;
-  if(queue.length)progress();
+  if(queue.length&&owner===user()?.id)progress();
   if(mode==='stars')folders();
  }
  async function folders(){
@@ -66,26 +82,28 @@
  async function upload(path,file){
   const {data,error}=await client().auth.getSession();if(error)throw error;if(!data.session||data.session.user.id!==owner)throw Error('Logga in med samma konto igen.');
   await new Promise((resolve,reject)=>{
-   const transfer=new tus.Upload(file,{endpoint:window.SDM_SUPABASE_URL.replace('.supabase.co','.storage.supabase.co')+'/storage/v1/upload/resumable',retryDelays:[0,1000,3000,5000,10000],chunkSize:6*1024*1024,uploadDataDuringCreation:true,removeFingerprintOnSuccess:true,headers:{authorization:`Bearer ${data.session.access_token}`,'x-upsert':'true'},metadata:{bucketName:bucket,objectName:path,contentType:file.type||'image/jpeg',cacheControl:'3600'},onError:reject,onSuccess:resolve});
-   transfer.start();
+   const transfer=new tus.Upload(file,{fingerprint:async()=>JSON.stringify([bucket,path,file.size]),endpoint:window.SDM_SUPABASE_URL.replace('.supabase.co','.storage.supabase.co')+'/storage/v1/upload/resumable',retryDelays:[0,1000,3000,5000,10000],chunkSize:6*1024*1024,uploadDataDuringCreation:true,removeFingerprintOnSuccess:true,headers:{authorization:`Bearer ${data.session.access_token}`,'x-upsert':'true'},metadata:{bucketName:bucket,objectName:path,contentType:file.type||'image/jpeg',cacheControl:'3600'},onError:reject,onSuccess:resolve});
+   transfer.findPreviousUploads().then(previous=>{if(previous.length)transfer.resumeFromPreviousUpload(previous[0]);transfer.start();}).catch(reject);
   });
  }
  async function process(item){
   if(user()?.id!==owner)throw Error('Kontot har ändrats. Logga in med ursprungskontot.');
   if(!['image/jpeg','image/png','image/webp'].includes(item.file.type))throw Error('Filformatet stöds inte. Använd JPEG, PNG eller WebP.');
   if(item.file.size>50*1024*1024)throw Error('Bilden är större än 50 MB.');
-  const id=item.id, base=`${owner}/${id}`, record={id,user_id:owner,name:item.file.name,original_path:base+'/original',preview_path:base+'/watermarked.jpg',thumbnail_path:base+'/thumbnail.jpg'};
-  if(!item.registered){checked(await client().from('photos').insert(record));item.registered=true;}
+  const id=item.id, base=`${owner}/${id}`, record={id,user_id:owner,name:item.name,original_path:base+'/original',preview_path:base+'/watermarked.jpg',thumbnail_path:base+'/thumbnail.jpg'};
+  if(!item.registered){const result=await client().from('photos').insert(record);if(result.error&&result.error.code!=='23505')throw result.error;item.registered=true;saveQueue();}
   const [watermarked,thumbnail]=await derivatives(item.file);
-  await upload(record.original_path,item.file);await upload(record.preview_path,watermarked);await upload(record.thumbnail_path,thumbnail);
+  for(const [stage,file] of [['original_path',item.file],['preview_path',watermarked],['thumbnail_path',thumbnail]]){
+   if(!item[stage]){await upload(record[stage],file);item[stage]=true;saveQueue();}
+  }
   checked(await client().from('photos').update({ready:true}).eq('id',id).eq('user_id',owner));
  }
  async function run(){
-  if(running)return;
+  if(running||owner!==user()?.id)return;
   if(!window.tus){status('Uppladdningsbiblioteket kunde inte laddas. Kontrollera internet och ladda om sidan.');return;}
   running=true;draw();
-  async function worker(){for(;;){const item=queue.find(x=>x.state==='waiting');if(!item)break;item.state='uploading';try{await process(item);item.state='done';item.file={name:item.file.name};}catch(e){item.state='failed';item.error=e.message;}progress();}}
-  try{await Promise.all([worker(),worker()]);}finally{running=false;await load();progress();}
+  async function worker(){for(;;){if(user()?.id!==owner)break;const item=queue.find(x=>x.state==='waiting');if(!item)break;item.state='uploading';try{await process(item);item.state='done';delete item.file;}catch(e){item.state='failed';item.error=e.message;}saveQueue();progress();}}
+  try{await Promise.all([worker(),worker()]);}finally{running=false;restoreQueue();await load();progress();}
  }
  async function remove(ids,restore=false){
   if(busy||!ids.length)return;
@@ -98,13 +116,19 @@
    await load();
   }catch(e){status('Åtgärden misslyckades: '+e.message);}finally{busy=false;draw();}
  }
- window.sdmPhotosRender=()=>{draw();load();};
- window.addEventListener('sdm-auth',()=>{generation++;rows=[];selected.clear();if(root()){draw();load();}});
+ window.sdmPhotosRender=()=>{restoreQueue();draw();load();};
+ window.addEventListener('sdm-auth',()=>{generation++;rows=[];selected.clear();restoreQueue();if(root()){draw();load();}});
  document.addEventListener('change',e=>{
   const t=e.target;
-  if(t.id==='photo-files'&&!running&&user()){
-   if(queue.some(x=>x.state==='failed')&&!confirm('Ersätta den tidigare kön? Misslyckade bilder behöver väljas igen.'))return;
-   owner=user().id;queue=Array.from(t.files,x=>({file:x,id:crypto.randomUUID(),state:'waiting'}));run();
+  if(['photo-files','photo-folder'].includes(t.id)&&!running&&user()){
+   restoreQueue();let skipped=0;
+   for(const file of Array.from(t.files)){
+    if(t.id==='photo-folder'&&!['image/jpeg','image/png','image/webp'].includes(file.type)){skipped++;continue;}
+    const key=fileKey(file),existing=queue.find(x=>x.key===key);
+    if(existing){if(existing.state!=='done'){existing.file=file;existing.state='waiting';}continue;}
+    queue.push({file,key,name:file.webkitRelativePath||file.name,id:crypto.randomUUID(),state:'waiting'});
+   }
+   saveQueue();draw();progress();if(skipped)status(message+` · ${skipped} filer med andra format hoppades över.`);
   }
   if(t.dataset.photoSelect){t.checked?selected.add(t.dataset.photoSelect):selected.delete(t.dataset.photoSelect);draw();}
   if(t.id==='photo-all'){selected=t.checked?new Set(rows.map(x=>x.id)):new Set();draw();}
@@ -113,9 +137,12 @@
  document.addEventListener('click',async e=>{
   const t=e.target.closest('button');if(!t||!root())return;
   try{
+   if(t.id==='photo-login'){if(!window.sdmCloudSignIn)throw Error('Inloggningen kunde inte laddas. Ladda om sidan.');await window.sdmCloudSignIn(status);}
    if(t.dataset.photoMode){mode=t.dataset.photoMode;offset=0;date='';await load();}
    if(t.dataset.photoDate){date=t.dataset.photoDate;offset=0;await load();}
    if(t.id==='photo-refresh')await load();
+   if(t.id==='photo-start')await run();
+   if(t.id==='photo-clear'&&!running&&confirm('Rensa den sparade kön? Redan uppladdade bilder behålls.')){queue=[];saveQueue();draw();progress();}
    if(t.id==='photo-prev'){offset=Math.max(0,offset-limit);await load();}
    if(t.id==='photo-next'){offset+=limit;await load();}
    if(t.dataset.photoStar){const x=rows.find(x=>x.id===t.dataset.photoStar);t.disabled=true;checked(await client().from('photos').update({starred:!x.starred}).eq('id',x.id));await load();}
@@ -123,7 +150,7 @@
    if(t.id==='photo-delete')await remove([...selected]);
    if(t.id==='photo-restore')await remove([...selected],true);
    if(t.id==='photo-retry'&&!running){queue.filter(x=>x.state==='failed').forEach(x=>x.state='waiting');await run();}
-   if(t.dataset.photoDownload){const x=rows.find(x=>x.id===t.dataset.photoDownload),name=t.dataset.variant==='original_path'?x.name:x.name.replace(/\.[^.]+$/,'')+'-vattenstampel.jpg';const data=checked(await client().storage.from(bucket).createSignedUrl(x[t.dataset.variant],60,{download:name}));const a=document.createElement('a');a.href=data.signedUrl;a.rel='noopener';a.target='_blank';a.click();}
+   if(t.dataset.photoDownload){const x=rows.find(x=>x.id===t.dataset.photoDownload),name=t.dataset.variant==='original_path'?x.name.split('/').pop():x.name.split('/').pop().replace(/\.[^.]+$/,'')+'-vattenstampel.jpg';const data=checked(await client().storage.from(bucket).createSignedUrl(x[t.dataset.variant],60,{download:name}));const a=document.createElement('a');a.href=data.signedUrl;a.rel='noopener';a.target='_blank';a.click();}
   }catch(err){status(err.message);}
  });
  window.addEventListener('beforeunload',e=>{if(running){e.preventDefault();e.returnValue='';}});
